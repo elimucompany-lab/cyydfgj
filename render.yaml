@@ -1,0 +1,138 @@
+services:
+  - type: pserv
+    name: postgres
+    runtime: docker
+    plan: starter
+    env: docker
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: .
+    envVars:
+      - key: POSTGRES_USER
+        value: avp
+      - key: POSTGRES_PASSWORD
+        generateValue: true
+      - key: POSTGRES_DB
+        value: aivideo
+    disk:
+      name: postgres-data
+      mountPath: /var/lib/postgresql/data
+      sizeGB: 10
+
+  - type: redis
+    name: redis
+    plan: starter
+    ipAllowList: []
+
+  - type: web
+    name: backend-api
+    runtime: docker
+    plan: standard
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: postgres
+          property: connectionString
+      - key: REDIS_URL
+        fromService:
+          type: redis
+          name: redis
+          property: connectionString
+      - key: CELERY_BROKER_URL
+        fromService:
+          type: redis
+          name: redis
+          property: connectionString
+      - key: CELERY_RESULT_BACKEND
+        fromService:
+          type: redis
+          name: redis
+          property: connectionString
+      - key: SECRET_KEY
+        generateValue: true
+      - key: REPLICATE_API_TOKEN
+        sync: false
+      - key: RUNWAY_API_KEY
+        sync: false
+      - key: AWS_ACCESS_KEY_ID
+        sync: false
+      - key: AWS_SECRET_ACCESS_KEY
+        sync: false
+      - key: S3_BUCKET
+        sync: false
+      - key: S3_ENDPOINT
+        sync: false
+      - key: S3_REGION
+        value: us-east-1
+      - key: FRONTEND_URL
+        value: https://ai-video-frontend.onrender.com
+      - key: CREDITS_PER_GENERATION
+        value: "10"
+      - key: DEFAULT_FREE_CREDITS
+        value: "50"
+    healthCheckPath: /health
+
+  - type: worker
+    name: celery-worker
+    runtime: docker
+    plan: standard
+    dockerfilePath: ./worker/Dockerfile
+    dockerContext: ./worker
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: postgres
+          property: connectionString
+      - key: REDIS_URL
+        fromService:
+          type: redis
+          name: redis
+          property: connectionString
+      - key: CELERY_BROKER_URL
+        fromService:
+          type: redis
+          name: redis
+          property: connectionString
+      - key: CELERY_RESULT_BACKEND
+        fromService:
+          type: redis
+          name: redis
+          property: connectionString
+      - key: REPLICATE_API_TOKEN
+        sync: false
+      - key: RUNWAY_API_KEY
+        sync: false
+      - key: AWS_ACCESS_KEY_ID
+        sync: false
+      - key: AWS_SECRET_ACCESS_KEY
+        sync: false
+      - key: S3_BUCKET
+        sync: false
+      - key: S3_ENDPOINT
+        sync: false
+      - key: S3_REGION
+        value: us-east-1
+
+  - type: web
+    name: frontend
+    runtime: docker
+    plan: standard
+    dockerfilePath: ./frontend/Dockerfile
+    dockerContext: ./frontend
+    envVars:
+      - key: NEXT_PUBLIC_API_URL
+        fromService:
+          type: web
+          name: backend-api
+          property: url
+      - key: NEXT_PUBLIC_APP_URL
+        value: https://ai-video-frontend.onrender.com
+      - key: NEXTAUTH_SECRET
+        generateValue: true
+      - key: NEXTAUTH_URL
+        value: https://ai-video-frontend.onrender.com
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      - key: GOOGLE_CLIENT_SECRET
+        sync: false
