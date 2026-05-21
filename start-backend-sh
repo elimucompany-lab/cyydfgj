@@ -1,0 +1,22 @@
+#!/bin/bash
+set -e
+
+echo "Extracting application..."
+apt-get update -qq && apt-get install -y -qq unzip > /dev/null 2>&1
+
+# Find the ZIP file (handles spaces in filename)
+ZIP_FILE=$(ls *.zip | head -1)
+unzip -q "$ZIP_FILE" -d /tmp/extracted
+
+# Find the extracted folder (might have different name)
+EXTRACTED_DIR=$(find /tmp/extracted -name "backend" -type d | head -1 | xargs dirname)
+
+echo "Installing dependencies..."
+cd "$EXTRACTED_DIR/backend"
+pip install -r requirements.txt -q
+
+echo "Running migrations..."
+alembic upgrade head
+
+echo "Starting server..."
+uvicorn app.main:app --host 0.0.0.0 --port 8000
